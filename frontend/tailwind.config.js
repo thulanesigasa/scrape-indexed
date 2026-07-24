@@ -8,13 +8,29 @@ module.exports = {
   theme: {
     extend: {
       colors: {
-        background: "#090d16",
-        card: "rgba(15, 23, 42, 0.75)",
-        border: "rgba(255, 255, 255, 0.1)",
-        cyanAccent: "#06b6d4",
-        emeraldAccent: "#10b981",
-        roseAccent: "#f43f5e",
-        amberAccent: "#f59e0b",
+        // 60% Dominant Base (White & Crisp Surfaces)
+        baseWhite: "#ffffff",
+        baseSurface: "#f8fafc",
+        cardWhite: "rgba(255, 255, 255, 0.95)",
+        
+        // 30% Secondary Structure (Emerald Green)
+        greenPrimary: "#059669",
+        greenDark: "#047857",
+        greenLight: "#10b981",
+        greenDim: "rgba(5, 150, 105, 0.08)",
+        greenBorder: "rgba(5, 150, 105, 0.25)",
+        
+        // 10% Accent Highlights (Crimson Red)
+        redAccent: "#ef4444",
+        redDark: "#dc2626",
+        redLight: "#f43f5e",
+        redDim: "rgba(239, 68, 68, 0.1)",
+        redBorder: "rgba(239, 68, 68, 0.3)",
+      },
+      fontFamily: {
+        poppinsBold: ["Poppins", "sans-serif"],
+        poppins: ["Poppins", "sans-serif"],
+        calibri: ["Calibri", "Segoe UI", "system-ui", "sans-serif"],
       },
     },
   },
