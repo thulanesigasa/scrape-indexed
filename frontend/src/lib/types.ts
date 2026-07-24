@@ -1,3 +1,16 @@
+export type ConnectionState = "connecting" | "open" | "closed" | "error";
+
+export interface SystemStatusPayload {
+  type: "SYSTEM_STATUS";
+  timestamp: number;
+  status: "Connected" | "Disconnected";
+  url: string;
+  title?: string;
+  dom_state: string;
+  cdp_url: string;
+  error?: string | null;
+}
+
 export interface MarketTick {
   symbol: string;
   timestamp: number;
@@ -37,12 +50,4 @@ export interface FalconSignal {
   stop_loss: number;
   take_profit: number;
   risk_reward_ratio: number;
-}
-
-export interface MarketStreamPayload {
-  type: "TICK_UPDATE";
-  tick: MarketTick;
-  swings: SwingPivot[];
-  trendlines: TrendlinesData;
-  signal: FalconSignal;
 }

@@ -1,73 +1,118 @@
 "use client";
 
-import { useEffect, useState, useRef } from "react";
-import { MarketStreamPayload, MarketTick, SwingPivot, TrendlinesData, FalconSignal } from "./types";
+import { useEffect, useState, useRef, useCallback } from "react";
+import { ConnectionState, SystemStatusPayload } from "./types";
 
-export function useFalconStream() {
-  const [payload, setPayload] = useState<MarketStreamPayload | null>(null);
-  const [history, setHistory] = useState<MarketTick[]>([]);
-  const [isConnected, setIsConnected] = useState<boolean>(false);
+interface UseFalconStreamOptions {
+  url?: string;
+  autoReconnect?: boolean;
+  reconnectIntervalMs?: number;
+}
+
+export function useFalconStream(options: UseFalconStreamOptions = {}) {
+  const {
+    url = process.env.NEXT_PUBLIC_WS_STATUS_URL || "ws://localhost:8000/ws/system-status",
+    autoReconnect = true,
+    reconnectIntervalMs = 2000,
+  } = options;
+
+  const [connectionState, setConnectionState] = useState<ConnectionState>("closed");
+  const [systemStatus, setSystemStatus] = useState<SystemStatusPayload | null>(null);
   const [latencyMs, setLatencyMs] = useState<number>(0);
+  
   const wsRef = useRef<WebSocket | null>(null);
+  const reconnectTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const isMountedRef = useRef<boolean>(true);
 
-  useEffect(() => {
-    const wsUrl = process.env.NEXT_PUBLIC_WS_URL || "ws://localhost:8000/ws/market-stream";
+  const connect = useCallback(() => {
+    if (!isMountedRef.current) return;
     
-    function connect() {
-      const ws = new WebSocket(wsUrl);
+    // Clean up any existing connection
+    if (wsRef.current) {
+      wsRef.current.close();
+      wsRef.current = null;
+    }
+
+    setConnectionState("connecting");
+
+    try {
+      const ws = new WebSocket(url);
       wsRef.current = ws;
 
       ws.onopen = () => {
-        setIsConnected(true);
-      };
-
-      ws.onmessage = (event) => {
-        const start = performance.now();
-        try {
-          const data: MarketStreamPayload = JSON.parse(event.data);
-          setPayload(data);
-          
-          if (data.tick) {
-            setHistory((prev) => {
-              const updated = [...prev, data.tick];
-              return updated.slice(-60); // Keep last 60 ticks for real-time rendering
-            });
-          }
-          setLatencyMs(Math.round(performance.now() - start));
-        } catch (err) {
-          console.error("Failed to parse WebSocket tick payload", err);
+        if (!isMountedRef.current) return;
+        setConnectionState("open");
+        if (reconnectTimerRef.current) {
+          clearTimeout(reconnectTimerRef.current);
+          reconnectTimerRef.current = null;
         }
       };
 
-      ws.onclose = () => {
-        setIsConnected(false);
-        // Automatic reconnection retry after 2 seconds
-        setTimeout(connect, 2000);
+      ws.onmessage = (event) => {
+        if (!isMountedRef.current) return;
+        const startTime = performance.now();
+        try {
+          const payload = JSON.parse(event.data);
+          if (payload.type === "SYSTEM_STATUS") {
+            setSystemStatus(payload as SystemStatusPayload);
+          }
+          setLatencyMs(Math.round(performance.now() - startTime));
+        } catch (err) {
+          console.error("[useFalconStream] Failed to parse WebSocket JSON payload:", err);
+        }
       };
 
       ws.onerror = (error) => {
-        console.error("WebSocket error:", error);
-        ws.close();
+        if (!isMountedRef.current) return;
+        console.warn("[useFalconStream] WebSocket encountered error:", error);
+        setConnectionState("error");
       };
-    }
 
+      ws.onclose = (event) => {
+        if (!isMountedRef.current) return;
+        setConnectionState("closed");
+        wsRef.current = null;
+
+        if (autoReconnect && isMountedRef.current) {
+          reconnectTimerRef.current = setTimeout(() => {
+            connect();
+          }, reconnectIntervalMs);
+        }
+      };
+    } catch (err) {
+      console.error("[useFalconStream] Failed to instantiate WebSocket:", err);
+      setConnectionState("error");
+      if (autoReconnect && isMountedRef.current) {
+        reconnectTimerRef.current = setTimeout(() => {
+          connect();
+        }, reconnectIntervalMs);
+      }
+    }
+  }, [url, autoReconnect, reconnectIntervalMs]);
+
+  useEffect(() => {
+    isMountedRef.current = true;
     connect();
 
     return () => {
+      isMountedRef.current = false;
+      if (reconnectTimerRef.current) {
+        clearTimeout(reconnectTimerRef.current);
+      }
       if (wsRef.current) {
         wsRef.current.close();
       }
     };
-  }, []);
+  }, [connect]);
 
   return {
-    payload,
-    history,
-    isConnected,
+    connectionState,
+    systemStatus,
     latencyMs,
-    tick: payload?.tick,
-    swings: payload?.swings || [],
-    trendlines: payload?.trendlines,
-    signal: payload?.signal,
+    isConnected: connectionState === "open" && systemStatus?.status === "Connected",
+    browserStatus: systemStatus?.status || "Disconnected",
+    activeUrl: systemStatus?.url || "N/A",
+    domState: systemStatus?.dom_state || "unreachable",
+    error: systemStatus?.error || null,
   };
 }
