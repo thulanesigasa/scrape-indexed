@@ -1,78 +1,93 @@
 "use client";
 
 import { useEffect, useState, useRef, useCallback } from "react";
-import { ConnectionState, SystemStatusPayload } from "./types";
+import { ConnectionState, SystemStatusPayload, TradingStreamPayload } from "./types";
 
 interface UseFalconStreamOptions {
-  url?: string;
+  statusUrl?: string;
+  tradingUrl?: string;
   autoReconnect?: boolean;
   reconnectIntervalMs?: number;
 }
 
 export function useFalconStream(options: UseFalconStreamOptions = {}) {
   const {
-    url = process.env.NEXT_PUBLIC_WS_STATUS_URL || "ws://localhost:8000/ws/system-status",
+    statusUrl = process.env.NEXT_PUBLIC_WS_STATUS_URL || "ws://localhost:8000/ws/system-status",
+    tradingUrl = process.env.NEXT_PUBLIC_WS_URL || "ws://localhost:8000/ws/trading-stream",
     autoReconnect = true,
     reconnectIntervalMs = 2000,
   } = options;
 
   const [connectionState, setConnectionState] = useState<ConnectionState>("closed");
   const [systemStatus, setSystemStatus] = useState<SystemStatusPayload | null>(null);
+  const [tradingData, setTradingData] = useState<TradingStreamPayload | null>(null);
   const [latencyMs, setLatencyMs] = useState<number>(0);
   
-  const wsRef = useRef<WebSocket | null>(null);
+  const statusWsRef = useRef<WebSocket | null>(null);
+  const tradingWsRef = useRef<WebSocket | null>(null);
   const reconnectTimerRef = useRef<NodeJS.Timeout | null>(null);
   const isMountedRef = useRef<boolean>(true);
 
   const connect = useCallback(() => {
     if (!isMountedRef.current) return;
-    
-    // Clean up any existing connection
-    if (wsRef.current) {
-      wsRef.current.close();
-      wsRef.current = null;
-    }
+
+    // Clean up existing connections
+    if (statusWsRef.current) statusWsRef.current.close();
+    if (tradingWsRef.current) tradingWsRef.current.close();
 
     setConnectionState("connecting");
 
     try {
-      const ws = new WebSocket(url);
-      wsRef.current = ws;
+      // Connect to status websocket
+      const statusWs = new WebSocket(statusUrl);
+      statusWsRef.current = statusWs;
 
-      ws.onopen = () => {
+      statusWs.onopen = () => {
         if (!isMountedRef.current) return;
         setConnectionState("open");
-        if (reconnectTimerRef.current) {
-          clearTimeout(reconnectTimerRef.current);
-          reconnectTimerRef.current = null;
-        }
       };
 
-      ws.onmessage = (event) => {
+      statusWs.onmessage = (event) => {
         if (!isMountedRef.current) return;
-        const startTime = performance.now();
         try {
           const payload = JSON.parse(event.data);
           if (payload.type === "SYSTEM_STATUS") {
             setSystemStatus(payload as SystemStatusPayload);
           }
-          setLatencyMs(Math.round(performance.now() - startTime));
         } catch (err) {
-          console.error("[useFalconStream] Failed to parse WebSocket JSON payload:", err);
+          console.error("[useFalconStream] Status WS parse error:", err);
         }
       };
 
-      ws.onerror = (error) => {
+      statusWs.onerror = () => {
         if (!isMountedRef.current) return;
-        console.warn("[useFalconStream] WebSocket encountered error:", error);
         setConnectionState("error");
       };
 
-      ws.onclose = (event) => {
+      statusWs.onclose = () => {
         if (!isMountedRef.current) return;
         setConnectionState("closed");
-        wsRef.current = null;
+      };
 
+      // Connect to trading stream websocket
+      const tradingWs = new WebSocket(tradingUrl);
+      tradingWsRef.current = tradingWs;
+
+      tradingWs.onmessage = (event) => {
+        if (!isMountedRef.current) return;
+        const startTime = performance.now();
+        try {
+          const payload = JSON.parse(event.data);
+          if (payload.candles && payload.trendlines) {
+            setTradingData(payload as TradingStreamPayload);
+          }
+          setLatencyMs(Math.round(performance.now() - startTime));
+        } catch (err) {
+          console.error("[useFalconStream] Trading WS parse error:", err);
+        }
+      };
+
+      tradingWs.onclose = () => {
         if (autoReconnect && isMountedRef.current) {
           reconnectTimerRef.current = setTimeout(() => {
             connect();
@@ -80,15 +95,10 @@ export function useFalconStream(options: UseFalconStreamOptions = {}) {
         }
       };
     } catch (err) {
-      console.error("[useFalconStream] Failed to instantiate WebSocket:", err);
+      console.error("[useFalconStream] Connection init error:", err);
       setConnectionState("error");
-      if (autoReconnect && isMountedRef.current) {
-        reconnectTimerRef.current = setTimeout(() => {
-          connect();
-        }, reconnectIntervalMs);
-      }
     }
-  }, [url, autoReconnect, reconnectIntervalMs]);
+  }, [statusUrl, tradingUrl, autoReconnect, reconnectIntervalMs]);
 
   useEffect(() => {
     isMountedRef.current = true;
@@ -96,23 +106,25 @@ export function useFalconStream(options: UseFalconStreamOptions = {}) {
 
     return () => {
       isMountedRef.current = false;
-      if (reconnectTimerRef.current) {
-        clearTimeout(reconnectTimerRef.current);
-      }
-      if (wsRef.current) {
-        wsRef.current.close();
-      }
+      if (reconnectTimerRef.current) clearTimeout(reconnectTimerRef.current);
+      if (statusWsRef.current) statusWsRef.current.close();
+      if (tradingWsRef.current) tradingWsRef.current.close();
     };
   }, [connect]);
 
   return {
     connectionState,
     systemStatus,
+    tradingData,
     latencyMs,
-    isConnected: connectionState === "open" && systemStatus?.status === "Connected",
+    isConnected: connectionState === "open",
     browserStatus: systemStatus?.status || "Disconnected",
     activeUrl: systemStatus?.url || "N/A",
     domState: systemStatus?.dom_state || "unreachable",
     error: systemStatus?.error || null,
+    price: tradingData?.price || 0,
+    candles: tradingData?.candles || [],
+    trendlines: tradingData?.trendlines || [],
+    signal: tradingData?.signal || { type: "NEUTRAL", entry: 0, stop_loss: 0, target: 0 },
   };
 }

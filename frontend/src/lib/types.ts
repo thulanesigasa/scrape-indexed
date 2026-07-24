@@ -11,43 +11,35 @@ export interface SystemStatusPayload {
   error?: string | null;
 }
 
-export interface MarketTick {
-  symbol: string;
+export interface CandleData {
+  index: number;
+  timestamp: number;
+  open: number;
+  high: number;
+  low: number;
+  close: number;
+  volume: number;
+}
+
+export interface TrendlineCoord {
+  type: "resistance" | "support";
+  x1: number;
+  y1: number;
+  x2: number;
+  y2: number;
+}
+
+export interface SignalPayload {
+  type: "LONG" | "SHORT" | "NEUTRAL";
+  entry: number;
+  stop_loss: number;
+  target: number;
+}
+
+export interface TradingStreamPayload {
   timestamp: number;
   price: number;
-  bid: number;
-  ask: number;
-  volume: number;
-  tick_id: number;
-  cdp_connected: boolean;
-}
-
-export interface SwingPivot {
-  index: number;
-  price: number;
-  type: "SWING_HIGH" | "SWING_LOW";
-}
-
-export interface TrendlineSpec {
-  slope: number;
-  intercept: number;
-  current_val: number;
-}
-
-export interface TrendlinesData {
-  resistance: TrendlineSpec;
-  support: TrendlineSpec;
-}
-
-export interface FalconSignal {
-  signal: "LONG_ENTRY" | "SHORT_ENTRY" | "HOLD";
-  confidence: number;
-  current_price: number;
-  resistance_level: number;
-  support_level: number;
-  ema_fast?: number;
-  ema_slow?: number;
-  stop_loss: number;
-  take_profit: number;
-  risk_reward_ratio: number;
+  candles: CandleData[];
+  trendlines: TrendlineCoord[];
+  signal: SignalPayload;
 }

@@ -1,136 +1,176 @@
+import time
 import numpy as np
 import pandas as pd
 from typing import List, Dict, Any, Tuple, Optional
 from src.utils.logger import logger
 
-class FalconStrategyEngine:
+class FalconEngine:
     """
-    Falcon Algorithmic Strategy Engine for scrape-indexed platform.
-    Performs automated trendline mapping, swing high/low pivot calculations,
-    EMA trend direction confirmation, and long/short signal generation with dynamic SL/TP.
+    Falcon Strategy Mathematical Engine.
+    Processes time-series price ticks/OHLC candles, detects swing high/low pivots,
+    fits resistance & support linear regression trendlines with (x1, y1, x2, y2) coordinates,
+    and evaluates LONG, SHORT, or NEUTRAL breakout signals with Stop Loss & Take Profit targets.
     """
-    def __init__(self, swing_window: int = 3, max_history: int = 120, ema_fast_period: int = 9, ema_slow_period: int = 21):
+    def __init__(self, swing_window: int = 3, max_candles: int = 60):
         self.swing_window = swing_window
-        self.max_history = max_history
-        self.ema_fast_period = ema_fast_period
-        self.ema_slow_period = ema_slow_period
-        self.ticks_history: List[Dict[str, Any]] = []
+        self.max_candles = max_candles
+        self.candles: List[Dict[str, Any]] = []
 
-    def push_tick(self, tick: Dict[str, Any]) -> Tuple[List[Dict[str, Any]], Dict[str, Any], Dict[str, Any]]:
+    def add_tick(self, price: float, timestamp: Optional[float] = None) -> Dict[str, Any]:
         """
-        Appends tick data, calculates OHLC candles, extracts swing points,
-        calculates support/resistance trendlines, computes EMA confirmation, and generates current trading signal.
+        Ingests a price tick, updates OHLC candle windows, computes trendlines,
+        and evaluates trading breakout signals.
         """
-        self.ticks_history.append(tick)
-        if len(self.ticks_history) > self.max_history:
-            self.ticks_history.pop(0)
-
-        prices = [t["price"] for t in self.ticks_history]
-        swings = self.calculate_swings(prices)
-        trendlines = self.compute_trendlines(prices, swings)
-        ema_fast, ema_slow = self.compute_ema(prices)
-        signal = self.evaluate_signal(prices[-1], trendlines, swings, ema_fast, ema_slow)
-
-        return swings, trendlines, signal
-
-    def compute_ema(self, prices: List[float]) -> Tuple[float, float]:
-        """Calculates Fast and Slow Exponential Moving Averages for trend confirmation."""
-        if len(prices) < self.ema_slow_period:
-            current = prices[-1] if prices else 65000.0
-            return current, current
-
-        series = pd.Series(prices)
-        ema_fast = series.ewm(span=self.ema_fast_period, adjust=False).mean().iloc[-1]
-        ema_slow = series.ewm(span=self.ema_slow_period, adjust=False).mean().iloc[-1]
-        return round(float(ema_fast), 2), round(float(ema_slow), 2)
-
-    def calculate_swings(self, prices: List[float]) -> List[Dict[str, Any]]:
-        """Identifies local swing highs and swing lows across price window."""
-        swings = []
-        if len(prices) < (2 * self.swing_window + 1):
-            return swings
-
-        for i in range(self.swing_window, len(prices) - self.swing_window):
-            window = prices[i - self.swing_window : i + self.swing_window + 1]
-            current = prices[i]
-            
-            if current == max(window):
-                swings.append({"index": i, "price": current, "type": "SWING_HIGH"})
-            elif current == min(window):
-                swings.append({"index": i, "price": current, "type": "SWING_LOW"})
-
-        return swings
-
-    def compute_trendlines(self, prices: List[float], swings: List[Dict[str, Any]]) -> Dict[str, Any]:
-        """Calculates linear regression support and resistance trendlines from swing nodes."""
-        n = len(prices)
-        if n < 5:
-            current = prices[-1] if prices else 65000.0
-            return {
-                "resistance": {"slope": 0.0, "intercept": current * 1.005, "current_val": current * 1.005},
-                "support": {"slope": 0.0, "intercept": current * 0.995, "current_val": current * 0.995}
+        ts = timestamp or time.time()
+        
+        # Build or update current 1-second OHLC candle window
+        if not self.candles or (ts - self.candles[-1]["timestamp"]) >= 1.0:
+            new_candle = {
+                "index": len(self.candles),
+                "timestamp": ts,
+                "open": price,
+                "high": price,
+                "low": price,
+                "close": price,
+                "volume": round(np.random.uniform(0.5, 5.0), 2)
             }
-
-        swing_highs = [s for s in swings if s["type"] == "SWING_HIGH"]
-        swing_lows = [s for s in swings if s["type"] == "SWING_LOW"]
-
-        if len(swing_highs) >= 2:
-            x = np.array([s["index"] for s in swing_highs[-4:]])
-            y = np.array([s["price"] for s in swing_highs[-4:]])
-            m_res, c_res = np.polyfit(x, y, 1)
+            self.candles.append(new_candle)
+            if len(self.candles) > self.max_candles:
+                self.candles.pop(0)
+                # Re-index remaining candles for continuous coordinate math
+                for idx, c in enumerate(self.candles):
+                    c["index"] = idx
         else:
-            m_res = 0.05
-            c_res = max(prices)
+            current_candle = self.candles[-1]
+            current_candle["high"] = max(current_candle["high"], price)
+            current_candle["low"] = min(current_candle["low"], price)
+            current_candle["close"] = price
 
-        if len(swing_lows) >= 2:
-            x = np.array([s["index"] for s in swing_lows[-4:]])
-            y = np.array([s["price"] for s in swing_lows[-4:]])
-            m_sup, c_sup = np.polyfit(x, y, 1)
-        else:
-            m_sup = 0.05
-            c_sup = min(prices)
-
-        current_res = round(float(m_res * (n - 1) + c_res), 2)
-        current_sup = round(float(m_sup * (n - 1) + c_sup), 2)
+        swings = self.detect_swing_points()
+        trendlines = self.calculate_trendlines(swings)
+        signal = self.evaluate_signal(price, trendlines)
 
         return {
-            "resistance": {"slope": round(float(m_res), 4), "intercept": round(float(c_res), 2), "current_val": current_res},
-            "support": {"slope": round(float(m_sup), 4), "intercept": round(float(c_sup), 2), "current_val": current_sup}
+            "timestamp": ts,
+            "price": price,
+            "candles": self.candles,
+            "trendlines": trendlines,
+            "signal": signal
         }
 
-    def evaluate_signal(self, current_price: float, trendlines: Dict[str, Any], swings: List[Dict[str, Any]], ema_fast: float, ema_slow: float) -> Dict[str, Any]:
-        """Generates Falcon Strategy LONG, SHORT, or HOLD signal with Risk Management SL/TP."""
-        res_val = trendlines["resistance"]["current_val"]
-        sup_val = trendlines["support"]["current_val"]
+    def detect_swing_points(self) -> Dict[str, List[Dict[str, Any]]]:
+        """
+        Detects local maxima (swing highs) and local minima (swing lows)
+        across the configurable sliding lookback window N.
+        """
+        highs = []
+        lows = []
+        n_candles = len(self.candles)
 
-        signal_type = "HOLD"
-        confidence = 70.0
+        if n_candles < (2 * self.swing_window + 1):
+            return {"highs": highs, "lows": lows}
+
+        closes = [c["close"] for c in self.candles]
+
+        for i in range(self.swing_window, n_candles - self.swing_window):
+            window = closes[i - self.swing_window : i + self.swing_window + 1]
+            current = closes[i]
+
+            if current == max(window):
+                highs.append({"index": i, "price": current, "type": "SWING_HIGH"})
+            elif current == min(window):
+                lows.append({"index": i, "price": current, "type": "SWING_LOW"})
+
+        return {"highs": highs, "lows": lows}
+
+    def calculate_trendlines(self, swings: Dict[str, List[Dict[str, Any]]]) -> List[Dict[str, Any]]:
+        """
+        Calculates linear regression support and resistance trendlines, returning
+        structured coordinates: {"type": "resistance", "x1": ..., "y1": ..., "x2": ..., "y2": ...}
+        """
+        n = len(self.candles)
+        if n < 5:
+            last_price = self.candles[-1]["close"] if self.candles else 65000.0
+            return [
+                {"type": "resistance", "x1": 0, "y1": round(last_price * 1.005, 2), "x2": max(1, n - 1), "y2": round(last_price * 1.005, 2)},
+                {"type": "support", "x1": 0, "y1": round(last_price * 0.995, 2), "x2": max(1, n - 1), "y2": round(last_price * 0.995, 2)}
+            ]
+
+        highs = swings["highs"]
+        lows = swings["lows"]
+
+        # Calculate Resistance Trendline (fitting upper swing highs)
+        if len(highs) >= 2:
+            x_res = np.array([h["index"] for h in highs[-4:]])
+            y_res = np.array([h["price"] for h in highs[-4:]])
+            m_res, c_res = np.polyfit(x_res, y_res, 1)
+            x1_res = int(x_res[0])
+            y1_res = round(float(m_res * x1_res + c_res), 2)
+            x2_res = n - 1
+            y2_res = round(float(m_res * x2_res + c_res), 2)
+        else:
+            x1_res = 0
+            y1_res = round(max([c["high"] for c in self.candles]), 2)
+            x2_res = n - 1
+            y2_res = y1_res
+
+        # Calculate Support Trendline (fitting lower swing lows)
+        if len(lows) >= 2:
+            x_sup = np.array([l["index"] for l in lows[-4:]])
+            y_sup = np.array([l["price"] for l in lows[-4:]])
+            m_sup, c_sup = np.polyfit(x_sup, y_sup, 1)
+            x1_sup = int(x_sup[0])
+            y1_sup = round(float(m_sup * x1_sup + c_sup), 2)
+            x2_sup = n - 1
+            y2_sup = round(float(m_sup * x2_sup + c_sup), 2)
+        else:
+            x1_sup = 0
+            y1_sup = round(min([c["low"] for c in self.candles]), 2)
+            x2_sup = n - 1
+            y2_sup = y1_sup
+
+        return [
+            {"type": "resistance", "x1": x1_res, "y1": y1_res, "x2": x2_res, "y2": y2_res},
+            {"type": "support", "x1": x1_sup, "y1": y1_sup, "x2": x2_sup, "y2": y2_sup}
+        ]
+
+    def evaluate_signal(self, current_price: float, trendlines: List[Dict[str, Any]]) -> Dict[str, Any]:
+        """
+        Evaluates breakout signal triggers based on price position relative to trendlines:
+        - LONG signal when price breaks above resistance line.
+        - SHORT signal when price breaks below support line.
+        - NEUTRAL otherwise.
+        """
+        res_line = next((t for t in trendlines if t["type"] == "resistance"), None)
+        sup_line = next((t for t in trendlines if t["type"] == "support"), None)
+
+        res_val = res_line["y2"] if res_line else current_price * 1.005
+        sup_val = sup_line["y2"] if sup_line else current_price * 0.995
+
+        signal_type = "NEUTRAL"
+        entry = current_price
         stop_loss = current_price
-        take_profit = current_price
+        target = current_price
 
-        # Falcon Bullish Breakout with EMA Fast > Slow Confirmation
-        if current_price >= res_val or (ema_fast > ema_slow and current_price > ((res_val + sup_val) / 2)):
-            signal_type = "LONG_ENTRY"
-            confidence = min(98.5, 88.0 + ((current_price - sup_val) / sup_val * 500))
-            stop_loss = round(sup_val * 0.998, 2)
-            take_profit = round(current_price + (current_price - sup_val) * 2.0, 2)
+        # LONG Signal Trigger: Bullish breakout above resistance
+        if current_price >= res_val:
+            signal_type = "LONG"
+            entry = current_price
+            stop_loss = round(sup_val, 2)
+            target = round(entry + (entry - stop_loss) * 1.8, 2)
 
-        # Falcon Bearish Breakdown with EMA Fast < Slow Confirmation
-        elif current_price <= sup_val or (ema_fast < ema_slow and current_price < ((res_val + sup_val) / 2)):
-            signal_type = "SHORT_ENTRY"
-            confidence = min(98.5, 88.0 + ((res_val - current_price) / res_val * 500))
-            stop_loss = round(res_val * 1.002, 2)
-            take_profit = round(current_price - (res_val - current_price) * 2.0, 2)
+        # SHORT Signal Trigger: Bearish breakdown below support
+        elif current_price <= sup_val:
+            signal_type = "SHORT"
+            entry = current_price
+            stop_loss = round(res_val, 2)
+            target = round(entry - (stop_loss - entry) * 1.8, 2)
 
         return {
-            "signal": signal_type,
-            "confidence": round(confidence, 1),
-            "current_price": current_price,
-            "resistance_level": res_val,
-            "support_level": sup_val,
-            "ema_fast": ema_fast,
-            "ema_slow": ema_slow,
+            "type": signal_type,
+            "entry": entry,
             "stop_loss": stop_loss,
-            "take_profit": take_profit,
-            "risk_reward_ratio": 2.0 if signal_type != "HOLD" else 0.0
+            "target": target
         }
+
+falcon_engine = FalconEngine()
