@@ -1,10 +1,23 @@
 import asyncio
 import random
+import socket
 import time
+import urllib.request
 from typing import Dict, Any, Optional
 from playwright.async_api import async_playwright, Browser, BrowserContext, Page
 from src.strategy.falcon_engine import falcon_engine
 from src.utils.logger import logger
+
+def is_cdp_port_open(host: str = "127.0.0.1", port: int = 9222, timeout: float = 0.5) -> bool:
+    """Fast non-blocking TCP socket check verifying if DevTools CDP port is listening."""
+    try:
+        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        sock.settimeout(timeout)
+        result = sock.connect_ex((host, port))
+        sock.close()
+        return result == 0
+    except Exception:
+        return False
 
 class CDPExtractor:
     """
@@ -22,13 +35,19 @@ class CDPExtractor:
         self.last_error: Optional[str] = None
         self.current_price: float = 2657.50
 
-    async def connect(self, timeout_ms: int = 5000) -> bool:
-        """Connects safely to the remote Chrome CDP endpoint."""
+    async def connect(self, timeout_ms: int = 1500) -> bool:
+        """Connects safely to the remote Chrome CDP endpoint with pre-check."""
+        # 1. Fast non-blocking socket pre-check to prevent Playwright hang
+        if not is_cdp_port_open("127.0.0.1", 9222, timeout=0.4):
+            self.is_connected = False
+            self.last_error = "Chrome CDP Port 9222 is not listening. Close Chrome and restart with --remote-debugging-port=9222"
+            return False
+
         try:
             if not self.playwright:
                 self.playwright = await async_playwright().start()
 
-            logger.info(f"Attempting CDP connection to {self.cdp_url} (timeout: {timeout_ms}ms)...")
+            logger.info(f"CDP port 9222 detected open. Connecting via Playwright...")
             
             self.browser = await asyncio.wait_for(
                 self.playwright.chromium.connect_over_cdp(self.cdp_url),
@@ -55,10 +74,6 @@ class CDPExtractor:
             else:
                 raise Exception("Connected over CDP but no browser context found.")
 
-        except asyncio.TimeoutError:
-            self.is_connected = False
-            self.last_error = f"Connection timeout connecting to {self.cdp_url}. Ensure Chrome is launched with --remote-debugging-port=9222 and --user-data-dir"
-            return False
         except Exception as e:
             self.is_connected = False
             self.last_error = str(e)
@@ -67,7 +82,7 @@ class CDPExtractor:
     async def get_system_status(self) -> Dict[str, Any]:
         """Extracts real-time connection status, active tab URL, and DOM readiness state."""
         if not self.is_connected or not self.active_page or self.active_page.is_closed():
-            connected = await self.connect(timeout_ms=1500)
+            connected = await self.connect(timeout_ms=1000)
             if not connected:
                 return {
                     "status": "Disconnected",
@@ -108,7 +123,6 @@ class CDPExtractor:
         """
         price = self.current_price
         
-        # Try DOM price extraction if browser is connected
         if self.is_connected and self.active_page and not self.active_page.is_closed():
             try:
                 extracted = await self.active_page.evaluate("""
@@ -124,7 +138,6 @@ class CDPExtractor:
             except Exception:
                 pass
 
-        # Apply stochastic flux around active price level
         delta = (random.random() - 0.495) * (self.current_price * 0.0015)
         price = round(max(10.0, self.current_price + delta), 2)
         self.current_price = price
