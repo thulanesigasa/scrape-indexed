@@ -31,14 +31,12 @@ export function useFalconStream(options: UseFalconStreamOptions = {}) {
   const connect = useCallback(() => {
     if (!isMountedRef.current) return;
 
-    // Clean up existing connections
     if (statusWsRef.current) statusWsRef.current.close();
     if (tradingWsRef.current) tradingWsRef.current.close();
 
     setConnectionState("connecting");
 
     try {
-      // Connect to status websocket
       const statusWs = new WebSocket(statusUrl);
       statusWsRef.current = statusWs;
 
@@ -69,7 +67,6 @@ export function useFalconStream(options: UseFalconStreamOptions = {}) {
         setConnectionState("closed");
       };
 
-      // Connect to trading stream websocket
       const tradingWs = new WebSocket(tradingUrl);
       tradingWsRef.current = tradingWs;
 
@@ -123,8 +120,10 @@ export function useFalconStream(options: UseFalconStreamOptions = {}) {
     domState: systemStatus?.dom_state || "unreachable",
     error: systemStatus?.error || null,
     price: tradingData?.price || 0,
+    marketBias: tradingData?.market_bias || "NEUTRAL",
     candles: tradingData?.candles || [],
     trendlines: tradingData?.trendlines || [],
-    signal: tradingData?.signal || { type: "NEUTRAL", entry: 0, stop_loss: 0, target: 0 },
+    currentSignal: tradingData?.current_signal || { type: "NEUTRAL", entry: 0, stop_loss: 0, target: 0, timestamp: 0 },
+    historicalSignals: tradingData?.historical_signals || [],
   };
 }
