@@ -8,8 +8,8 @@ from src.utils.logger import logger
 
 app = FastAPI(
     title="Falcon Strategy Algorithmic Trading & DOM Extractor API",
-    version="1.0.0",
-    description="Real-Time WebSocket pipeline broadcasting Chrome CDP connection status & market strategy signals."
+    version="1.1.0",
+    description="Real-Time WebSocket pipeline broadcasting Chrome CDP connection status & market strategy signals (Phase 1 & Phase 2)."
 )
 
 # CORS configuration for local Next.js frontend development server
