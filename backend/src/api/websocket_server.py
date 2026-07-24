@@ -4,12 +4,12 @@ from typing import List, Dict, Any
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from src.automation.cdp_extractor import cdp_extractor
-from src.utils.logger import logger
+from src.utils.logger import logger, signal_logger
 
 app = FastAPI(
-    title="Falcon Strategy Algorithmic Trading & DOM Extractor API",
-    version="2.0.0",
-    description="Real-Time WebSocket pipeline broadcasting Chrome CDP connection status & Falcon Strategy trading stream."
+    title="Falcon Strategy Algorithmic Analytical Microservice",
+    version="3.0.0",
+    description="Real-Time WebSocket analytical pipeline broadcasting market trendlines, breakout signals, and historical accuracy logs."
 )
 
 app.add_middleware(
@@ -25,7 +25,7 @@ app.add_middleware(
 )
 
 class ConnectionManager:
-    """Manages active WebSocket connections for status and trading stream endpoints."""
+    """Manages active WebSocket connections for analytical data feeds."""
     def __init__(self):
         self.status_connections: List[WebSocket] = []
         self.trading_connections: List[WebSocket] = []
@@ -51,12 +51,12 @@ class ConnectionManager:
     async def connect_trading(self, websocket: WebSocket):
         await websocket.accept()
         self.trading_connections.append(websocket)
-        logger.info(f"Trading stream WebSocket client connected. Total clients: {len(self.trading_connections)}")
+        logger.info(f"Analytical WebSocket client connected. Total clients: {len(self.trading_connections)}")
 
     def disconnect_trading(self, websocket: WebSocket):
         if websocket in self.trading_connections:
             self.trading_connections.remove(websocket)
-            logger.info(f"Trading stream WebSocket client disconnected. Total clients: {len(self.trading_connections)}")
+            logger.info(f"Analytical WebSocket client disconnected. Total clients: {len(self.trading_connections)}")
 
     async def broadcast_trading(self, message: Dict[str, Any]):
         disconnected = []
@@ -72,12 +72,12 @@ manager = ConnectionManager()
 
 @app.on_event("startup")
 async def startup_event():
-    logger.info("Starting up WebSocket server background broadcast loops...")
+    logger.info("Starting up analytical WebSocket broadcast loops...")
     asyncio.create_task(broadcast_system_status_loop())
     asyncio.create_task(broadcast_trading_stream_loop())
 
 async def broadcast_system_status_loop():
-    """Periodically broadcasts CDP system connection status to /ws/system-status."""
+    """Periodically broadcasts CDP system status to /ws/system-status."""
     while True:
         try:
             status_data = await cdp_extractor.get_system_status()
@@ -93,24 +93,33 @@ async def broadcast_system_status_loop():
 
 async def broadcast_trading_stream_loop():
     """
-    Periodically extracts price tick, computes Falcon Engine math,
-    and broadcasts trading payload to /ws/trading-stream subscribers.
+    Periodically extracts tick price, computes Falcon analytical math,
+    and broadcasts consolidated analytical payload (current_signal, active_trendlines, historical_signals, market_bias).
     """
     while True:
         try:
             payload = await cdp_extractor.extract_next_tick()
             await manager.broadcast_trading(payload)
         except Exception as e:
-            logger.error(f"Error in trading stream broadcast loop: {e}")
+            logger.error(f"Error in trading analytics broadcast loop: {e}")
         await asyncio.sleep(0.5)
 
 @app.get("/api/health")
 async def health_check():
     status = await cdp_extractor.get_system_status()
+    db_signals = signal_logger.fetch_historical_signals(limit=10)
     return {
         "service": "falcon-algo-trader-backend",
         "status": "ONLINE",
-        "cdp_extractor": status
+        "cdp_extractor": status,
+        "historical_signals_count": len(db_signals)
+    }
+
+@app.get("/api/historical-signals")
+async def get_historical_signals():
+    """REST endpoint returning historical signal logs from SQLite database."""
+    return {
+        "signals": signal_logger.fetch_historical_signals(limit=50)
     }
 
 @app.websocket("/ws/system-status")
@@ -135,11 +144,11 @@ async def websocket_system_status(websocket: WebSocket):
 @app.websocket("/ws/trading-stream")
 async def websocket_trading_stream(websocket: WebSocket):
     """
-    WebSocket endpoint broadcasting real-time price ticks, candles, trendline coordinates, and signals.
+    WebSocket endpoint broadcasting real-time price ticks, candles, active trendlines,
+    current breakout signal event, and historical signal accuracy records.
     """
     await manager.connect_trading(websocket)
     try:
-        # Send immediate tick payload upon connection
         initial_payload = await cdp_extractor.extract_next_tick()
         await websocket.send_json(initial_payload)
 

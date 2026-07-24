@@ -29,17 +29,22 @@ export interface TrendlineCoord {
   y2: number;
 }
 
-export interface SignalPayload {
+export interface SignalEventData {
   type: "LONG" | "SHORT" | "NEUTRAL";
   entry: number;
   stop_loss: number;
   target: number;
+  timestamp: number;
+  broken_trendline?: TrendlineCoord | null;
+  max_favorable_excursion?: number;
 }
 
 export interface TradingStreamPayload {
   timestamp: number;
   price: number;
+  market_bias: "BULLISH" | "BEARISH" | "NEUTRAL";
   candles: CandleData[];
   trendlines: TrendlineCoord[];
-  signal: SignalPayload;
+  current_signal: SignalEventData;
+  historical_signals: SignalEventData[];
 }

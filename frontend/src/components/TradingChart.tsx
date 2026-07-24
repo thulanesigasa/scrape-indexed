@@ -5,23 +5,23 @@ import {
   ResponsiveContainer,
   ComposedChart,
   Line,
-  Bar,
   XAxis,
   YAxis,
   Tooltip,
   CartesianGrid,
   ReferenceLine,
 } from "recharts";
-import { CandleData, TrendlineCoord } from "../lib/types";
-import { LineChart, TrendingUp, TrendingDown, Activity } from "lucide-react";
+import { CandleData, TrendlineCoord, SignalEventData } from "../lib/types";
+import { LineChart, TrendingUp, TrendingDown, Activity, History } from "lucide-react";
 
 interface TradingChartProps {
   candles?: CandleData[];
   trendlines?: TrendlineCoord[];
+  historicalSignals?: SignalEventData[];
   currentPrice?: number;
 }
 
-export function TradingChart({ candles = [], trendlines = [], currentPrice }: TradingChartProps) {
+export function TradingChart({ candles = [], trendlines = [], historicalSignals = [], currentPrice }: TradingChartProps) {
   const chartData = candles.map((c) => ({
     time: new Date(c.timestamp * 1000).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" }),
     index: c.index,
@@ -36,8 +36,13 @@ export function TradingChart({ candles = [], trendlines = [], currentPrice }: Tr
   const resCoord = trendlines.find((t) => t.type === "resistance");
   const supCoord = trendlines.find((t) => t.type === "support");
 
-  const minVal = Math.min(...candles.map((c) => c.low), currentPrice || 65000) * 0.998;
-  const maxVal = Math.max(...candles.map((c) => c.high), currentPrice || 65000) * 1.002;
+  const minVal = Math.min(...candles.map((c) => c.low), currentPrice || 65240) * 0.998;
+  const maxVal = Math.max(...candles.map((c) => c.high), currentPrice || 65240) * 1.002;
+
+  // Extract valid broken trendlines from historical signals for visual overlay
+  const pastBreakoutTrendlines = historicalSignals
+    .filter((sig) => sig.broken_trendline && sig.broken_trendline.y2)
+    .slice(0, 5); // Keep up to 5 recent historical breakout lines
 
   return (
     <div className="glass-panel p-5 rounded-xl flex flex-col gap-4 border border-border">
@@ -48,10 +53,10 @@ export function TradingChart({ candles = [], trendlines = [], currentPrice }: Tr
           </div>
           <div>
             <h2 className="text-sm font-semibold tracking-wide text-slate-100 uppercase">
-              Falcon Mathematical Trendline Visualizer
+              Falcon Mathematical Analysis & Persistent Overlay
             </h2>
             <p className="text-xs text-slate-400 font-mono">
-              Live Linear Regression Fitting (x1, y1) to (x2, y2)
+              Active Support/Resistance & Color-Coded Historical Breakout Lines
             </p>
           </div>
         </div>
@@ -59,11 +64,11 @@ export function TradingChart({ candles = [], trendlines = [], currentPrice }: Tr
         <div className="flex items-center gap-4 text-xs font-mono">
           <div className="flex items-center gap-1.5 text-roseAccent">
             <TrendingUp className="w-4 h-4" />
-            <span>Res Line: ${resCoord?.y2.toFixed(2) || "---"}</span>
+            <span>Resistance: ${resCoord?.y2.toFixed(2) || "---"}</span>
           </div>
           <div className="flex items-center gap-1.5 text-emeraldAccent">
             <TrendingDown className="w-4 h-4" />
-            <span>Sup Line: ${supCoord?.y2.toFixed(2) || "---"}</span>
+            <span>Support: ${supCoord?.y2.toFixed(2) || "---"}</span>
           </div>
         </div>
       </div>
@@ -90,7 +95,30 @@ export function TradingChart({ candles = [], trendlines = [], currentPrice }: Tr
                   color: "#f8fafc",
                 }}
               />
-              {/* Candlestick Close Line */}
+
+              {/* Faded Historical Breakout Trendline Overlays */}
+              {pastBreakoutTrendlines.map((sig, idx) => {
+                const isBull = sig.type === "LONG";
+                const strokeColor = isBull ? "#10b98166" : "#f43f5e66"; // Faded green for past LONG, faded red for past SHORT
+                const yVal = sig.broken_trendline?.y2 || sig.entry;
+                return (
+                  <ReferenceLine
+                    key={`hist-${idx}`}
+                    y={yVal}
+                    stroke={strokeColor}
+                    strokeWidth={1.5}
+                    strokeDasharray="2 4"
+                    label={{
+                      value: `Past ${sig.type} Break (${yVal.toFixed(1)})`,
+                      fill: isBull ? "#10b981aa" : "#f43f5eaa",
+                      fontSize: 9,
+                      position: isBull ? "bottom" : "top",
+                    }}
+                  />
+                );
+              })}
+
+              {/* Active Candlestick Close Line */}
               <Line
                 type="monotone"
                 dataKey="close"
@@ -100,27 +128,30 @@ export function TradingChart({ candles = [], trendlines = [], currentPrice }: Tr
                 isAnimationActive={false}
                 name="Close Price"
               />
-              {/* Resistance Trendline Overlay */}
+
+              {/* Active Resistance Line */}
               {resCoord && (
                 <ReferenceLine
                   y={resCoord.y2}
                   stroke="#f43f5e"
                   strokeWidth={2}
-                  strokeDasharray="6 6"
+                  strokeDasharray="5 5"
                   label={{ value: `Resistance (${resCoord.y2.toFixed(1)})`, fill: "#f43f5e", fontSize: 10, position: "top" }}
                 />
               )}
-              {/* Support Trendline Overlay */}
+
+              {/* Active Support Line */}
               {supCoord && (
                 <ReferenceLine
                   y={supCoord.y2}
                   stroke="#10b981"
                   strokeWidth={2}
-                  strokeDasharray="6 6"
+                  strokeDasharray="5 5"
                   label={{ value: `Support (${supCoord.y2.toFixed(1)})`, fill: "#10b981", fontSize: 10, position: "bottom" }}
                 />
               )}
-              {/* Live Price Reference Line */}
+
+              {/* Live Price Reference */}
               {currentPrice && (
                 <ReferenceLine
                   y={currentPrice}
@@ -134,7 +165,7 @@ export function TradingChart({ candles = [], trendlines = [], currentPrice }: Tr
         ) : (
           <div className="h-full flex items-center justify-center text-xs text-slate-500 font-mono gap-2">
             <Activity className="w-4 h-4 animate-spin text-cyanAccent" />
-            <span>Awaiting Real-Time Trading WebSocket Stream...</span>
+            <span>Awaiting Analytical WebSocket Stream...</span>
           </div>
         )}
       </div>

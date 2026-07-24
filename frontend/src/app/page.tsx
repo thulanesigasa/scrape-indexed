@@ -12,9 +12,11 @@ export default function Home() {
     isConnected,
     browserStatus,
     price,
+    marketBias,
     candles,
     trendlines,
-    signal,
+    currentSignal,
+    historicalSignals,
   } = useFalconStream();
 
   return (
@@ -26,19 +28,24 @@ export default function Home() {
       />
 
       <div className="flex-1 max-w-7xl w-full mx-auto p-6 grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Main Chart Area (2 Cols) */}
+        {/* Main Trading Chart with Historic Overlays (2 Cols) */}
         <div className="lg:col-span-2 flex flex-col gap-6">
           <TradingChart
             candles={candles}
             trendlines={trendlines}
+            historicalSignals={historicalSignals}
             currentPrice={price}
           />
         </div>
 
-        {/* Sidebar: System Status & Signal Alerts (1 Col) */}
+        {/* Analytics Alerting Panel & Telemetry (1 Col) */}
         <div className="flex flex-col gap-6">
           <SystemStatus />
-          <SignalPanel signal={signal} />
+          <SignalPanel
+            currentSignal={currentSignal}
+            historicalSignals={historicalSignals}
+            marketBias={marketBias}
+          />
         </div>
       </div>
     </main>
