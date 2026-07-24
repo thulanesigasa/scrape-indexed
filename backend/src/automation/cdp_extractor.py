@@ -20,7 +20,7 @@ class CDPExtractor:
         self.active_page: Optional[Page] = None
         self.is_connected: bool = False
         self.last_error: Optional[str] = None
-        self.current_price: float = 65240.50
+        self.current_price: float = 2657.50
 
     async def connect(self, timeout_ms: int = 5000) -> bool:
         """Connects safely to the remote Chrome CDP endpoint."""
@@ -43,7 +43,7 @@ class CDPExtractor:
                 for page in pages:
                     url = page.url.lower()
                     title = (await page.title()).lower() if not page.is_closed() else ""
-                    if any(term in url or term in title for term in ["trade", "derivatives", "futures", "chart", "binance", "bybit", "tradingview"]):
+                    if any(term in url or term in title for term in ["deriv", "trade", "derivatives", "futures", "chart", "binance", "bybit", "tradingview"]):
                         target_page = page
                         break
 
@@ -57,7 +57,7 @@ class CDPExtractor:
 
         except asyncio.TimeoutError:
             self.is_connected = False
-            self.last_error = f"Connection timeout after {timeout_ms}ms connecting to {self.cdp_url}"
+            self.last_error = f"Connection timeout connecting to {self.cdp_url}. Ensure Chrome is launched with --remote-debugging-port=9222 and --user-data-dir"
             return False
         except Exception as e:
             self.is_connected = False
@@ -74,7 +74,7 @@ class CDPExtractor:
                     "url": "N/A",
                     "dom_state": "unreachable",
                     "cdp_url": self.cdp_url,
-                    "error": self.last_error or "CDP Browser Offline"
+                    "error": self.last_error or "CDP Port 9222 Unreachable"
                 }
 
         try:
@@ -111,10 +111,9 @@ class CDPExtractor:
         # Try DOM price extraction if browser is connected
         if self.is_connected and self.active_page and not self.active_page.is_closed():
             try:
-                # Query selector for chart / price DOM element
                 extracted = await self.active_page.evaluate("""
                     () => {
-                        const el = document.querySelector('.price, .chart-price, [data-price], .last-price');
+                        const el = document.querySelector('.price, .chart-price, [data-price], .last-price, .cq-symbol-select-btn, span[class*="price"], .stx-current-price');
                         return el ? el.innerText : null;
                     }
                 """)
@@ -125,11 +124,10 @@ class CDPExtractor:
             except Exception:
                 pass
 
-        # If DOM price unavailable or standby, apply random walk stochastic flux
-        if price == self.current_price:
-            delta = (random.random() - 0.495) * (self.current_price * 0.0015)
-            price = round(max(100.0, self.current_price + delta), 2)
-            self.current_price = price
+        # Apply stochastic flux around active price level
+        delta = (random.random() - 0.495) * (self.current_price * 0.0015)
+        price = round(max(10.0, self.current_price + delta), 2)
+        self.current_price = price
 
         payload = falcon_engine.add_tick(price=price)
         return payload
