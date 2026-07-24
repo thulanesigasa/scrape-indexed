@@ -1,6 +1,6 @@
-# Falcon Strategy Algorithmic Trading Platform (`falcon-algo-trader`)
+# Scrape Indexed (`scrape-indexed`)
 
-High-frequency, low-latency MVP for automated trading applying the **Falcon Strategy** (automated trendline mapping, swing high/low pivot calculations, long/short signal generation).
+High-frequency, low-latency Web Scraping & Automated Algorithmic Trading Platform applying the **Falcon Strategy** (automated trendline mapping, DOM Playwright CDP extraction, swing high/low pivot calculations, long/short signal generation).
 
 ## Stack Overview
 - **Backend / Engine**: Python 3.11, FastAPI, Playwright (Remote CDP connection for DOM extraction), Pandas, NumPy, WebSockets.
@@ -9,7 +9,7 @@ High-frequency, low-latency MVP for automated trading applying the **Falcon Stra
 
 ## Project Structure
 ```plaintext
-falcon-algo-trader/
+scrape-indexed/
 ├── .github/workflows/       # CI/CD pipelines
 ├── backend/                 # Python trading & DOM extraction engine
 │   ├── src/
@@ -34,8 +34,8 @@ falcon-algo-trader/
 ## Quick Start
 ```bash
 # Clone the repository
-git clone git@github.com:thulanesigasa/falcon-algo-trader.git
-cd falcon-algo-trader
+git clone git@github.com:thulanesigasa/scrape-indexed.git
+cd scrape-indexed
 
 # Start using Docker Compose
 docker compose up --build
