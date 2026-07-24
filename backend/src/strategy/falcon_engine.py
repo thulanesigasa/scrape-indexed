@@ -5,7 +5,7 @@ from src.utils.logger import logger
 
 class FalconStrategyEngine:
     """
-    Falcon Algorithmic Strategy Engine.
+    Falcon Algorithmic Strategy Engine for scrape-indexed platform.
     Performs automated trendline mapping, swing high/low pivot calculations,
     EMA trend direction confirmation, and long/short signal generation with dynamic SL/TP.
     """
