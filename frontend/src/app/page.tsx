@@ -20,7 +20,7 @@ export default function Home() {
   } = useFalconStream();
 
   return (
-    <main className="min-h-screen flex flex-col bg-[#090d16] text-slate-100">
+    <main className="min-h-screen flex flex-col bg-slate-50 text-slate-900 font-calibri selection:bg-emerald-600 selection:text-white">
       <Header
         isConnected={isConnected}
         symbol="BTC/USDT"
@@ -28,7 +28,7 @@ export default function Home() {
       />
 
       <div className="flex-1 max-w-7xl w-full mx-auto p-6 grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Main Trading Chart with Historic Overlays (2 Cols) */}
+        {/* Main Trading Chart Area (2 Cols) */}
         <div className="lg:col-span-2 flex flex-col gap-6">
           <TradingChart
             candles={candles}

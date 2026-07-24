@@ -16,104 +16,85 @@ export function SystemStatus() {
     error,
   } = useFalconStream();
 
-  // Color & status determination for visual indicators
-  let statusColor = "bg-roseAccent"; // Red for Disconnected / Error
-  let pingColor = "text-roseAccent";
+  let statusBg = "bg-red-50 text-red-700 border-red-200"; // 10% Red Accent for Disconnected
+  let dotColor = "bg-red-500";
   let statusLabel = "Disconnected";
 
   if (connectionState === "connecting") {
-    statusColor = "bg-amberAccent animate-ping"; // Yellow for Connecting
-    pingColor = "text-amberAccent";
+    statusBg = "bg-amber-50 text-amber-700 border-amber-200";
+    dotColor = "bg-amber-500 animate-ping";
     statusLabel = "Connecting";
   } else if (connectionState === "open") {
     if (browserStatus === "Connected") {
-      statusColor = "bg-emeraldAccent animate-pulse"; // Green for Connected
-      pingColor = "text-emeraldAccent";
+      statusBg = "bg-emerald-50 text-emerald-800 border-emerald-300"; // 30% Green Structure
+      dotColor = "bg-emerald-500 animate-pulse";
       statusLabel = "Connected";
     } else {
-      statusColor = "bg-amberAccent"; // Yellow for WebSocket Open but CDP Standby
-      pingColor = "text-amberAccent";
+      statusBg = "bg-amber-50 text-amber-700 border-amber-200";
+      dotColor = "bg-amber-500";
       statusLabel = "CDP Standby";
     }
   }
 
   return (
-    <div className="glass-panel p-5 rounded-xl flex flex-col gap-4 border border-border">
-      {/* Header with Visual Dot Status */}
-      <div className="flex items-center justify-between border-b border-white/10 pb-3">
+    <div className="bg-white p-6 rounded-2xl border border-emerald-100 shadow-sm flex flex-col gap-4">
+      {/* Header with 60-30-10 Dot Status & Poppins Bold */}
+      <div className="flex items-center justify-between border-b border-emerald-100 pb-4">
         <div className="flex items-center gap-3">
           <div className="relative flex h-3.5 w-3.5 items-center justify-center">
-            <span
-              className={`absolute inline-flex h-full w-full rounded-full opacity-75 ${statusColor}`}
-            />
-            <span
-              className={`relative inline-flex h-2.5 w-2.5 rounded-full ${
-                connectionState === "open" && browserStatus === "Connected"
-                  ? "bg-emerald-400"
-                  : connectionState === "connecting"
-                  ? "bg-amber-400"
-                  : "bg-rose-500"
-              }`}
-            />
+            <span className={`absolute inline-flex h-full w-full rounded-full opacity-75 ${dotColor}`} />
+            <span className={`relative inline-flex h-2.5 w-2.5 rounded-full ${dotColor}`} />
           </div>
           <div>
-            <h3 className="text-sm font-semibold tracking-wide text-slate-100 uppercase flex items-center gap-2">
+            <h3 className="text-sm font-extrabold tracking-tight text-slate-900 font-poppinsBold uppercase">
               Browser Automation & CDP Pipeline
             </h3>
-            <p className="text-xs text-slate-400 font-mono">FastAPI WebSocket `/ws/system-status`</p>
+            <p className="text-xs text-slate-500 font-calibri">FastAPI WebSocket `/ws/system-status`</p>
           </div>
         </div>
 
-        <span
-          className={`px-2.5 py-1 rounded-full text-xs font-mono font-bold tracking-wide uppercase border ${
-            isConnected
-              ? "badge-long"
-              : connectionState === "connecting"
-              ? "badge-hold"
-              : "badge-short"
-          }`}
-        >
+        <span className={`px-3 py-1 rounded-full text-xs font-poppins font-bold uppercase border ${statusBg}`}>
           {statusLabel}
         </span>
       </div>
 
-      {/* System Metrics Grid */}
-      <div className="grid grid-cols-2 gap-3 text-xs font-mono">
-        <div className="p-3 rounded-lg glass-card border border-white/5 flex flex-col gap-1">
-          <div className="text-slate-400 flex items-center gap-1.5">
-            <Cpu className="w-3.5 h-3.5 text-cyanAccent" />
+      {/* System Metrics Grid in Calibri Font */}
+      <div className="grid grid-cols-2 gap-3 text-xs font-calibri">
+        <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200 flex flex-col gap-1">
+          <div className="text-slate-500 flex items-center gap-1.5 font-poppins font-medium">
+            <Cpu className="w-3.5 h-3.5 text-emerald-600" />
             <span>CDP Status</span>
           </div>
-          <div className="font-bold text-slate-200 truncate">{browserStatus}</div>
+          <div className="font-bold text-slate-900 truncate">{browserStatus}</div>
         </div>
 
-        <div className="p-3 rounded-lg glass-card border border-white/5 flex flex-col gap-1">
-          <div className="text-slate-400 flex items-center gap-1.5">
-            <Activity className={`w-3.5 h-3.5 ${pingColor}`} />
+        <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200 flex flex-col gap-1">
+          <div className="text-slate-500 flex items-center gap-1.5 font-poppins font-medium">
+            <Activity className="w-3.5 h-3.5 text-emerald-600" />
             <span>DOM State</span>
           </div>
-          <div className="font-bold text-slate-200 capitalize">{domState}</div>
+          <div className="font-bold text-slate-900 capitalize">{domState}</div>
         </div>
 
-        <div className="p-3 rounded-lg glass-card border border-white/5 col-span-2 flex flex-col gap-1">
-          <div className="text-slate-400 flex items-center gap-1.5">
-            <Globe className="w-3.5 h-3.5 text-emeraldAccent" />
+        <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200 col-span-2 flex flex-col gap-1">
+          <div className="text-slate-500 flex items-center gap-1.5 font-poppins font-medium">
+            <Globe className="w-3.5 h-3.5 text-emerald-600" />
             <span>Active Tab URL</span>
           </div>
-          <div className="font-bold text-slate-300 truncate" title={activeUrl}>
+          <div className="font-bold text-slate-700 truncate" title={activeUrl}>
             {activeUrl}
           </div>
         </div>
       </div>
 
-      {/* Latency & Error Alert */}
-      <div className="flex items-center justify-between text-xs font-mono pt-1 text-slate-400">
+      {/* Telemetry & Error Alert Footer */}
+      <div className="flex items-center justify-between text-xs font-calibri text-slate-600 pt-1">
         <div className="flex items-center gap-1.5">
-          <CheckCircle2 className="w-3.5 h-3.5 text-emeraldAccent" />
-          <span>Stream Latency: <strong className="text-slate-200">{latencyMs} ms</strong></span>
+          <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+          <span>Stream Latency: <strong className="text-slate-900">{latencyMs} ms</strong></span>
         </div>
         {error && (
-          <div className="flex items-center gap-1 text-roseAccent truncate max-w-[200px]" title={error}>
+          <div className="flex items-center gap-1 text-red-600 truncate max-w-[200px]" title={error}>
             <ShieldAlert className="w-3.5 h-3.5 shrink-0" />
             <span className="truncate">{error}</span>
           </div>

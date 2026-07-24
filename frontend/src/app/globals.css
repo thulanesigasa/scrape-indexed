@@ -2,115 +2,118 @@
 @tailwind components;
 @tailwind utilities;
 
-/* ===================================================
-   FALCON STRATEGY & SCRAPE-INDEXED DESIGN SYSTEM
-   Dark Glassmorphism + Neon Accent Trading Terminal
-   Derived from @portfolio design system
-   =================================================== */
+/* =========================================================
+   60-30-10 WHITE-GREEN-RED DESIGN SYSTEM
+   Derived from @rhymamusic, @sellmynotes, and @makemynotes
+   
+   60% Base:  White (#ffffff / #f8fafc)
+   30% Struct: Emerald Green (#059669 / #10b981)
+   10% Accent: Crimson Red (#ef4444 / #dc2626)
+   
+   Typography: Poppins Bold (Headers), Poppins (UI), Calibri (Body/Data)
+   ========================================================= */
 
 :root {
-  --color-bg:           #090d16;
-  --color-bg-card:      rgba(15, 23, 42, 0.75);
-  --color-bg-card-hover: rgba(30, 41, 59, 0.85);
-  --color-primary:      #06b6d4;
-  --color-primary-glow: rgba(6, 182, 212, 0.25);
-  --color-secondary:    #8a92a9;
-  --color-text:         #f8fafc;
-  --color-text-muted:   #94a3b8;
-  --color-border:       rgba(255, 255, 255, 0.08);
-  --color-border-glow:  rgba(6, 182, 212, 0.35);
+  --color-bg-base:        #f8fafc;
+  --color-card-bg:        rgba(255, 255, 255, 0.92);
+  --color-card-hover:     #ffffff;
+  
+  --color-green-primary:  #059669;
+  --color-green-light:    #10b981;
+  --color-green-dark:     #047857;
+  --color-green-dim:      rgba(5, 150, 105, 0.08);
+  --color-green-border:   rgba(5, 150, 105, 0.22);
 
-  --radius-sm:  8px;
-  --radius-md:  14px;
-  --radius-lg:  22px;
-  --radius-full: 9999px;
+  --color-red-accent:     #ef4444;
+  --color-red-light:      #f43f5e;
+  --color-red-dim:        rgba(239, 68, 68, 0.1);
+  --color-red-border:     rgba(239, 68, 68, 0.3);
 
-  --shadow-glow:  0 0 30px rgba(6, 182, 212, 0.2), 0 8px 32px rgba(0, 0, 0, 0.4);
-  --shadow-card:  0 4px 32px rgba(0, 0, 0, 0.35), 0 1px 0 rgba(255, 255, 255, 0.06) inset;
-  --shadow-hover: 0 0 50px rgba(6, 182, 212, 0.3), 0 16px 48px rgba(0, 0, 0, 0.5);
+  --font-poppins-bold:    'Poppins', sans-serif;
+  --font-poppins:         'Poppins', sans-serif;
+  --font-calibri:         'Calibri', 'Segoe UI', system-ui, sans-serif;
 
-  --transition-fast:   150ms cubic-bezier(0.4, 0, 0.2, 1);
-  --transition-base:   280ms cubic-bezier(0.4, 0, 0.2, 1);
+  --shadow-card:          0 4px 20px rgba(5, 150, 105, 0.06), 0 1px 3px rgba(0, 0, 0, 0.05);
+  --shadow-hover:         0 10px 30px rgba(5, 150, 105, 0.12), 0 2px 6px rgba(0, 0, 0, 0.08);
+  --shadow-alert:         0 0 25px rgba(239, 68, 68, 0.25);
 }
 
 body {
-  background-color: var(--color-bg);
-  color: var(--color-text);
-  font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  background-color: var(--color-bg-base);
+  color: #0f172a;
+  font-family: var(--font-calibri);
   min-height: 100vh;
   overflow-x: hidden;
   -webkit-font-smoothing: antialiased;
 }
 
-/* Glassmorphism Cards derived from Portfolio */
+/* Headings with Poppins Bold */
+h1, h2, h3, h4, h5, h6, .font-heading {
+  font-family: var(--font-poppins-bold);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+/* UI Elements with Poppins */
+button, input, select, nav, .font-ui {
+  font-family: var(--font-poppins);
+}
+
+/* Body & Data with Calibri */
+p, span, td, th, .font-body, .font-data {
+  font-family: var(--font-calibri);
+}
+
+/* 60% White Surface Glass Panels */
 .glass-panel {
-  background: var(--color-bg-card);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  border: 1px solid var(--color-border);
+  background: var(--color-card-bg);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1.5px solid var(--color-green-border);
   box-shadow: var(--shadow-card);
-  border-radius: var(--radius-md);
-  transition: all var(--transition-base);
+  border-radius: 16px;
+  transition: all 250ms cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .glass-panel:hover {
-  border-color: var(--color-border-glow);
+  border-color: rgba(5, 150, 105, 0.4);
   box-shadow: var(--shadow-hover);
 }
 
 .glass-card {
-  background: rgba(30, 41, 59, 0.45);
-  border: 1px solid rgba(255, 255, 255, 0.06);
-  border-radius: var(--radius-sm);
-  transition: all var(--transition-base);
+  background: #ffffff;
+  border: 1px solid rgba(5, 150, 105, 0.15);
+  border-radius: 10px;
+  transition: all 200ms ease;
 }
 
 .glass-card:hover {
-  background: rgba(30, 41, 59, 0.7);
-  border-color: rgba(6, 182, 212, 0.3);
+  border-color: var(--color-green-primary);
+  box-shadow: 0 4px 12px rgba(5, 150, 105, 0.08);
 }
 
-/* Badges & Pills */
-.badge {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.35rem;
-  padding: 0.35rem 0.85rem;
-  border-radius: var(--radius-full);
-  font-size: 0.75rem;
-  font-weight: 600;
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
-}
-
+/* Badges following 60-30-10 rule */
 .badge-long {
-  background: rgba(16, 185, 129, 0.15);
-  color: #10b981;
-  border: 1px solid rgba(16, 185, 129, 0.35);
-  box-shadow: 0 0 12px rgba(16, 185, 129, 0.2);
+  background: rgba(5, 150, 105, 0.1);
+  color: #047857;
+  border: 1px solid rgba(5, 150, 105, 0.3);
+  font-family: var(--font-poppins);
+  font-weight: 600;
 }
 
 .badge-short {
-  background: rgba(244, 63, 94, 0.15);
-  color: #f43f5e;
-  border: 1px solid rgba(244, 63, 94, 0.35);
-  box-shadow: 0 0 12px rgba(244, 63, 94, 0.2);
+  background: rgba(239, 68, 68, 0.12);
+  color: #dc2626;
+  border: 1px solid rgba(239, 68, 68, 0.35);
+  box-shadow: var(--shadow-alert);
+  font-family: var(--font-poppins);
+  font-weight: 600;
 }
 
 .badge-hold {
-  background: rgba(245, 158, 11, 0.15);
-  color: #f59e0b;
-  border: 1px solid rgba(245, 158, 11, 0.35);
-}
-
-/* Text glow styles */
-.text-glow {
-  text-shadow: 0 0 20px rgba(6, 182, 212, 0.4);
-}
-
-.gradient-text {
-  background: linear-gradient(135deg, #06b6d4 0%, #38bdf8 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
+  background: rgba(245, 158, 11, 0.12);
+  color: #d97706;
+  border: 1px solid rgba(245, 158, 11, 0.3);
+  font-family: var(--font-poppins);
+  font-weight: 600;
 }
