@@ -103,7 +103,7 @@ Running the application manually on your host machine allows for rapid local dev
 5. (Optional) Launch Chrome with Remote Debugging enabled on port `9222`:
    - **Windows**:
      ```powershell
-     & "C:\Program Files\Google\Chrome\Application\chrome.exe" --remote-debugging-port=9222
+     "C:\Program Files\Google\Chrome\Application\chrome.exe" --remote-debugging-port=9222 --user-data-dir="C:\chrome_dev_profile" https://charts.deriv.com/deriv --remote-debugging-port=9222
      ```
    - **Linux**:
      ```bash
